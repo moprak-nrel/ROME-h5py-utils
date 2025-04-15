@@ -8,14 +8,16 @@ def write_test_h5_file(outfile):
     """Creates a test hdf5 file which has the dimensions of {time, field, x, y, z}
     and appropriate hdf5 attributes/scales for each dimension
     """
+
+    # Set dimensions of test data
     nx, ny, nz = 32, 32, 32
-    x = np.linspace(0, 1, nx, endpoint=False)
-    y = np.linspace(0, 1, ny, endpoint=False)
-    z = np.linspace(0, 1, nz, endpoint=False)
-
-    spatial_dims = (nx, ny, nz)
     fields = ["u", "v", "w", "p"]
+    nt = 10
+    spatial_dims = (nx, ny, nz)
+    snapshot_dims = (len(fields), *spatial_dims)
+    full_dims = (nt, *snapshot_dims)
 
+    # Fill in dummy values for data
     def get_snapshot(spatial_dims, time):
         res = np.empty((len(fields), *spatial_dims))
         snapshot = {}
@@ -24,14 +26,16 @@ def write_test_h5_file(outfile):
             res[i] = snapshot[f]
         return res
 
-    snapshot_dims = (len(fields), *spatial_dims)
-    times = np.arange(0, 10)
-    full_dims = (len(times), *snapshot_dims)
+    x = np.linspace(0, 1, nx, endpoint=False)
+    y = np.linspace(0, 1, ny, endpoint=False)
+    z = np.linspace(0, 1, nz, endpoint=False)
+    times = np.arange(0, nt)
 
     full_data = np.empty(full_dims)
     for i, t in enumerate(times):
         full_data[i] = get_snapshot(spatial_dims, t)
 
+    # H5 file creation
     hfile = h5.File(outfile, "w")
     dset = hfile.create_dataset("data", data=full_data, chunks=(1, 1, *spatial_dims))
     dimensions = {"x": x, "y": y, "z": z, "times": times, "fields": fields}
