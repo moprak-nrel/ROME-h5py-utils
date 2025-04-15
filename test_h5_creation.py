@@ -4,11 +4,7 @@ import h5py as h5
 import numpy as np
 
 
-def write_test_h5_file(outfile):
-    """Creates a test hdf5 file which has the dimensions of {time, field, x, y, z}
-    and appropriate hdf5 attributes/scales for each dimension
-    """
-
+def generate_test_data():
     # Set dimensions of test data
     nx, ny, nz = 32, 32, 32
     fields = ["u", "v", "w", "p"]
@@ -34,16 +30,32 @@ def write_test_h5_file(outfile):
     full_data = np.empty(full_dims)
     for i, t in enumerate(times):
         full_data[i] = get_snapshot(spatial_dims, t)
+    return {
+        "full_data": full_data,
+        "x": x,
+        "y": y,
+        "z": z,
+        "times": times,
+        "fields": fields,
+        "units": {"times": "s", "fields": "", "x": "m", "y": "m", "z": "m"},
+        "dim_order": ["times", "fields", "x", "y", "z"],
+    }
 
+
+def write_test_h5_file(data, outfile):
+    """Creates a test hdf5 file which has the dimensions of {time, field, x, y, z}
+    and appropriate hdf5 attributes/scales for each dimension
+    """
     # H5 file creation
     hfile = h5.File(outfile, "w")
-    dset = hfile.create_dataset("data", data=full_data, chunks=(1, 1, *spatial_dims))
-    dimensions = {"x": x, "y": y, "z": z, "times": times, "fields": fields}
-    dim_order = ["times", "fields", "x", "y", "z"]
-    dim_units = {"times": "s", "fields": "", "x": "m", "y": "m", "z": "m"}
-    for i, dim in enumerate(dim_order):
-        dim_dataset = hfile.create_dataset(dim, data=dimensions[dim])
-        dim_dataset.attrs["units"] = dim_units[dim]
+    full_dims = data["full_data"].shape
+    spatial_dims = data["full_data"].shape[2:]
+    dset = hfile.create_dataset(
+        "data", data=data["full_data"], chunks=(1, 1, *spatial_dims)
+    )
+    for i, dim in enumerate(data["dim_order"]):
+        dim_dataset = hfile.create_dataset(dim, data=data[dim])
+        dim_dataset.attrs["units"] = data["units"][dim]
         dim_dataset.make_scale(dim)
         dset.dims[i].label = dim
         dset.dims[i].attach_scale(dim_dataset)
@@ -67,4 +79,5 @@ if __name__ == "__main__":
         default="./test.h5",
     )
     args = parser.parse_args()
-    write_test_h5_file(args.outfile)
+    data = generate_test_data()
+    write_test_h5_file(data, args.outfile)
